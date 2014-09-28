@@ -157,7 +157,7 @@ class Syncing {
                             if($object{$cursor} == "{" && !$inString) $openingBrackets++;
                             if($object{$cursor} == "}" && !$inString) $closingBrackets++;
                             
-                            if($arrayEnd || feof($file)){
+                            if($arrayEnd){
                                 die("End of array");
                             }
                             
@@ -196,7 +196,6 @@ class Syncing {
                                             goto fixme;
                                         } else if ($object{$cursor} == "]") {
                                             $arrayEnd = true;
-                                            die("fin");
                                         }
                                         
                                     }

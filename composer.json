@@ -1,0 +1,19 @@
+{
+    "name": "mschuett/jmem",
+    "description": "Break up large json files into reasonable sizes.",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Michael Schuett",
+            "email": "michaeljs1990@gmail.com"
+        }
+    ],
+    "require": {
+        "php": ">=5.4.0"
+    },
+    "autoload": {
+        "psr-0": {
+            "jmem": "src/"
+        }
+    }
+}

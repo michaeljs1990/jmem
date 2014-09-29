@@ -4,7 +4,7 @@ class Syncing {
     
     public function iterator($id) {
         
-        $file = fopen("/var/www/html/server/app/storage/uploads/a4a1425a6fa10eb399759229f3553cfb6d98c3848ac5063af283190bbb802962.json", "r");
+        $file = fopen("C:\\Users\\mschuett\\Downloads\\Hangouts\\Hangouts.json", "rb");
         //$file = fopen("/home/michael/Downloads/debug.json", "r");
         $i = 0;
         

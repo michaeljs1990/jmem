@@ -6,7 +6,7 @@ Interface ParserInterface {
 
 	public function setBytes($bytes);
 
-	public function setElement($elemnts);
+	public function setElement($elements);
 
 	public function parse();
 

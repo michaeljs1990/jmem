@@ -20,6 +20,24 @@ class Parser implements ParserInterface {
      */
     private $stream;
 
+    /**
+     * Keep track of when we have hit the end of the
+     * array that we want to read in.
+     *
+     * @var bool
+     */
+    private $arrayEnd = false;
+
+    /**
+     * Keep track of the number of times we have seen
+     * an opening and closing bracket.
+     *
+     * @var int
+     */
+    private $openingBrackets = 0;
+
+    private $closingBrackets = 0;
+
     public function __construct(LoaderInterface $loader) {
         $this->loader = $loader;
     }
@@ -30,6 +48,11 @@ class Parser implements ParserInterface {
             // Place the stream right before the first object.
             $this->getObject();
 
+            // Find all the objects!
+            while(!$this->arrayEnd) {
+                if(!$this->eatWhitespace()) break;
+
+            }
         }
 
     }
@@ -55,11 +78,11 @@ class Parser implements ParserInterface {
             $found_element = strpos($this->stream, $this->loader->getElement());
 
             if($found_element !== false) {
-                $this->trimStream();
-                return true;
+                return $this->trimStream();
             }
         }
 
+        $this->arrayEnd = true;
         return false;
     }
 
@@ -84,11 +107,15 @@ class Parser implements ParserInterface {
                     $this->stream = substr($this->stream, ++$i);
                     // Edge case where array was last char in string
                     if($this->stream === false) $this->stream = "";
+                    // We are done here.
+                    return true;
                 }
 
             }
         }
 
+        $this->arrayEnd = true;
+        return false;
     }
 
     /**
@@ -96,6 +123,30 @@ class Parser implements ParserInterface {
      * and set everything to the proper state.
      */
     private function eatWhitespace() {
+        // Eat up array until next object is found.
+        while(!feof($this->loader->getFile()) || !$this->arrayEnd) {
+
+            $this->stream .= fread($this->loader->getFile(), $this->loader->getBytes());
+
+            for($i = 0; $i < strlen($this->stream); $i++) {
+                if($this->stream{$i} == "{") {
+                    // Remove the old part of the object
+                    $this->stream = substr($this->stream, $i);
+                    $this->openingBrackets = 1;
+                    $this->closingBrackets = 0;
+                    return true;
+                } else if ($this->stream{$i} == "]") {
+                    $this->arrayEnd = true;
+                    return false;
+                }
+            }
+        }
+
+        $this->arrayEnd = true;
+        return false;
+    }
+
+    private function readObject() {
 
     }
 

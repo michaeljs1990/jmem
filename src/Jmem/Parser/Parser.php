@@ -29,6 +29,14 @@ class Parser implements ParserInterface {
     private $arrayEnd = false;
 
     /**
+     * This keeps track of the current position we are
+     * looking at in the json file.
+     *
+     * @var int
+     */
+    private $cursor = 0;
+
+    /**
      * Keep track of the number of times we have seen
      * an opening and closing bracket.
      *
@@ -51,9 +59,26 @@ class Parser implements ParserInterface {
             // Find all the objects!
             while(!$this->arrayEnd) {
                 if(!$this->eatWhitespace()) break;
-
+                $object = $this->readObject();
             }
         }
+
+    }
+
+    /**
+     * Add the proper amount of bytes to the stream if
+     * we are all out of data to read return false.
+     *
+     * @return bool
+     */
+    private function getStream() {
+
+        if(!feof($this->loader->getFile())) {
+            $this->stream .= file($this->loader->getFile(), $this->loader->getBytes());
+            return true;
+        }
+
+        return false;
 
     }
 
@@ -66,8 +91,7 @@ class Parser implements ParserInterface {
     private function findElement() {
 
         // Keep looping while we look for the set element
-        while(!feof($this->loader->getFile())){
-            $this->stream .= file($this->loader->getFile(), $this->loader->getBytes());
+        while($this->getStream()){
 
             $streamLength = mb_strlen($this->stream);
             // Check to make sure that we do not miss the string because it has been broken in half.
@@ -95,9 +119,7 @@ class Parser implements ParserInterface {
         // Get the current position after we have found the element.
         $position = strpos($this->stream, $this->loader->getElement()) + 1;
 
-        while(!feof($this->loader->getFile())) {
-            $this->stream .= fread($this->loader->getFile(), $this->loader->getBytes());
-
+        while($this->getStream()) {
             $streamLength = mb_strlen($this->stream);
 
             for($i = $position; $i < $streamLength; $i++) {
@@ -124,15 +146,13 @@ class Parser implements ParserInterface {
      */
     private function eatWhitespace() {
         // Eat up array until next object is found.
-        while(!feof($this->loader->getFile()) || !$this->arrayEnd) {
-
-            $this->stream .= fread($this->loader->getFile(), $this->loader->getBytes());
+        while($this->getStream() || !$this->arrayEnd) {
 
             for($i = 0; $i < strlen($this->stream); $i++) {
                 if($this->stream{$i} == "{") {
                     // Remove the old part of the object
                     $this->stream = substr($this->stream, $i);
-                    $this->openingBrackets = 1;
+                    $this->openingBrackets = 0;
                     $this->closingBrackets = 0;
                     return true;
                 } else if ($this->stream{$i} == "]") {
@@ -146,7 +166,54 @@ class Parser implements ParserInterface {
         return false;
     }
 
+    /**
+     * Find the next full object and when it's ready
+     * return true.
+     *
+     * @return bool
+     */
     private function readObject() {
+
+        $inString = false;
+
+        while ($this->getStream() || !$this->arrayEnd) {
+            for(; $this->cursor < strlen($this->stream); $this->cursor++) {
+
+                $this->jumpCursor();
+
+                switch($this->stream{$this->cursor}) {
+                    case '"':
+                        $inString = !!$inString;
+                        break;
+                    case "{":
+                        $this->openingBrackets++;
+                        break;
+                    case "}":
+                        $this->closingBrackets++;
+                        break;
+                }
+
+                if($this->openingBrackets == $this->closingBrackets && $this->peningBrackets != 0) {
+                    return true;
+                }
+
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Keep jumping over the cursor while the current
+     * cursor is pointing to \ if not return.
+     */
+    private function jumpCursor() {
+
+        if($this->stream{$this->stream} == "\\") {
+            $this->cursor += 2;
+            if(!isset($this->stream{$this->cursor})) $this->getStream();
+            $this->jumpCursor();
+        }
 
     }
 

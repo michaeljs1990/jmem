@@ -1,5 +1,6 @@
 <?php namespace Jmem\Parser;
 
+use Jmem\JsonObject;
 use Jmem\LoaderInterface;
 
 class Parser implements ParserInterface {
@@ -37,6 +38,14 @@ class Parser implements ParserInterface {
     private $cursor = 0;
 
     /**
+     * Keep track of how many json objects we have found
+     * inside of this array.
+     *
+     * @var int
+     */
+    private $object_num = 0;
+
+    /**
      * Keep track of the number of times we have seen
      * an opening and closing bracket.
      *
@@ -50,16 +59,21 @@ class Parser implements ParserInterface {
         $this->loader = $loader;
     }
 
+    /**
+     * Find all objects in the file provided.
+     * It is the users job to ensure the json is
+     * actually valid before starting this function.
+     */
     public function start() {
 
         if($this->findElement()) {
-            // Place the stream right before the first object.
-            $this->getObject();
-
             // Find all the objects!
             while(!$this->arrayEnd) {
                 if(!$this->eatWhitespace()) break;
-                $object = $this->readObject();
+                if($this->readObject()){
+                    yield $this->packageJSON();
+                    $this->sanitize();
+                }
             }
         }
 
@@ -74,7 +88,7 @@ class Parser implements ParserInterface {
     private function getStream() {
 
         if(!feof($this->loader->getFile())) {
-            $this->stream .= file($this->loader->getFile(), $this->loader->getBytes());
+            $this->stream .= fread($this->loader->getFile(), $this->loader->getBytes());
             return true;
         }
 
@@ -142,7 +156,8 @@ class Parser implements ParserInterface {
 
     /**
      * This will eat all whitespace before the start of an object
-     * and set everything to the proper state.
+     * and set everything to the proper state. This also will eat
+     * up any , that occurs between two objects.
      */
     private function eatWhitespace() {
         // Eat up array until next object is found.
@@ -183,17 +198,20 @@ class Parser implements ParserInterface {
 
                 switch($this->stream{$this->cursor}) {
                     case '"':
-                        $inString = !!$inString;
+                        $inString = !$inString;
                         break;
                     case "{":
+                        if($inString) break;
                         $this->openingBrackets++;
                         break;
                     case "}":
+                        if($inString) break;
                         $this->closingBrackets++;
                         break;
                 }
 
-                if($this->openingBrackets == $this->closingBrackets && $this->peningBrackets != 0) {
+                // If condition is met return data back to user for manipulation.
+                if($this->openingBrackets == $this->closingBrackets && $this->openingBrackets != 0) {
                     return true;
                 }
 
@@ -208,13 +226,47 @@ class Parser implements ParserInterface {
      * cursor is pointing to \ if not return.
      */
     private function jumpCursor() {
+        // Ensure we actually have something to check in the stream before and after possible jump.
+        if(!isset($this->stream{$this->cursor}) || !isset($this->stream{$this->cursor + 2})) $this->getStream();
 
-        if($this->stream{$this->stream} == "\\") {
+        if($this->stream{$this->cursor} == "\\") {
             $this->cursor += 2;
-            if(!isset($this->stream{$this->cursor})) $this->getStream();
             $this->jumpCursor();
         }
 
+    }
+
+    /**
+     * Package up the data and return it to the user.
+     * Allows for us to easily add more properties to this
+     * object at a later time without messing up code.
+     *
+     * @return JsonObject
+     */
+    private function packageJSON() {
+        return new JsonObject(
+            trim(substr($this->stream, 0, ++$this->cursor)),
+            ++$this->object_num
+        );
+    }
+
+    /**
+     * Place the object back into a sane state. Needed for
+     * cleanup after we have delivered the object to the
+     * user.
+     */
+    private function sanitize() {
+        $this->stream = substr($this->stream, $this->cursor);
+
+        // At end of string create a new one
+        if($this->stream === false) $this->stream = "";
+
+        // Set brackets back to defaults.
+        $this->openingBrackets = $this->closingBrackets = 0;
+
+        // reset cursor. Moving it to where we left off
+        // Before we cut down the string size.
+        $this->cursor = 0;
     }
 
 }

@@ -161,7 +161,7 @@ class Parser implements ParserInterface {
      */
     private function eatWhitespace() {
         // Eat up array until next object is found.
-        while($this->getStream() || !$this->arrayEnd) {
+        while($this->getStream() && !$this->arrayEnd) {
 
             for($i = 0; $i < strlen($this->stream); $i++) {
                 if($this->stream{$i} == "{") {

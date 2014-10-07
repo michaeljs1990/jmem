@@ -11,7 +11,17 @@ class JsonLoader implements LoaderInterface {
 	private $bytes;
 
 	private $element;
-
+	
+	/**
+	* $file is the path to the file that you would like to parse though.
+	* If the file does not exist an exception will be thrown. Element is
+	* the array of objects you would like to have broken up and returned
+	* to you.
+	*
+	* @param String $file
+	* @param String $element
+	* @param int $bytes (1024 default)
+	*/
 	public function __construct($file, $element, $bytes = 1024) {
 
 		$this->setFile($file);

@@ -38,8 +38,11 @@ class JsonLoader implements LoaderInterface {
      * @throws \Exception
      */
 	public function setFile($file) {
-
-        if(is_readable($file)) {
+        $f = $file;
+        if (preg_match('#^compress\.(.*)://(.*)#', $file, $r)) {
+            $f = $r[2];
+        }
+        if(is_readable($f)) {
             $open = fopen($file, "rb");
             $this->file = $open;
         } else {

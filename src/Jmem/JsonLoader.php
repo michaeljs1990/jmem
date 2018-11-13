@@ -12,45 +12,58 @@ class JsonLoader implements LoaderInterface {
 
 	private $element;
 	
+	public $fclose_on_destruct=false;
+	
 	/**
 	* $file is the path to the file that you would like to parse though.
 	* If the file does not exist an exception will be thrown. Element is
 	* the array of objects you would like to have broken up and returned
 	* to you.
 	*
-	* @param String $file
+	* @param String|resource $file
 	* @param String $element
 	* @param int $bytes (1024 default)
 	*/
 	public function __construct($file, $element, $bytes = 1024) {
-
 		$this->setFile($file);
 		$this->setElement($element);
 		$this->setBytes($bytes);
 
 	}
-
+        public function __destruct(){
+        if($this->fclose_on_destruct){
+            fclose($this->file);
+        }
+    }
     /**
      * Set the file and open up a steam. If the file
      * cannot be opened for reading throw an error.
      *
-     * @param $file
+     * @param string|resource $file
+     * @throws \InvalidArgumentException
      * @throws \Exception
      */
-	public function setFile($file) {
-        $f = $file;
-        if (preg_match('#^compress\.(.*)://(.*)#', $file, $r)) {
-            $f = $r[2];
+    public function setFile($file) {
+        if(is_resource($file) && get_resource_type($file)==='stream' && stream_get_meta_data($file)['seekable']===true){
+            $this->file=$file;
+            $this->fclose_on_destruct=false;
+        }elseif(is_string($file)){
+            $f = $file;
+            if (preg_match('#^compress\.(.*)://(.*)#', $file, $r)) {
+                $f = $r[2];
+            }
+            if(is_readable($f)) {
+                $open = fopen($file, "rb");
+                $this->file = $open;
+                $this->fclose_on_destruct=true;
+            } else {
+                $this->handleError("{$file} is not readable.");
+            }
+        }else{
+            throw new \InvalidArgumentException('$file must be either a path to a readable file, or a seekable stream');
         }
-        if(is_readable($f)) {
-            $open = fopen($file, "rb");
-            $this->file = $open;
-        } else {
-            $this->handleError("{$file} is not readable.");
-        }
-
-	}
-
+    }
+	
     /**
      * Set the amount of bytes that should be read in
      * at a time. 1024 bytes is the default value.
